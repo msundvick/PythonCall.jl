@@ -105,6 +105,11 @@ else:
     CONFIG['exepath'] = exepath
     libpath = subprocess.run([exepath, '--startup-file=no', '-O0', '--compile=min', '-e', 'import Libdl; print(abspath(Libdl.dlpath("libjulia")))'], stdout=(subprocess.PIPE)).stdout.decode('utf8')
 
+if not skip:
+    # Get required packages
+    # Do this outside of working directory changes
+    pkgs = deps.required_packages()
+
 # Initialize Julia, including installing required packages
 d = os.getcwd()
 try:
@@ -120,8 +125,6 @@ try:
     if skip:
         install = ''
     else:
-        # get required packages
-        pkgs = deps.required_packages()
         # add PythonCall
         if isdev:
             pkgs.append(deps.PackageSpec(name="PythonCall", uuid="6099a3de-0909-46bc-b1f4-468b9a2dfc0d", path=reporoot, dev=True))
@@ -173,6 +176,7 @@ try:
     if res is None:
         raise Exception('PythonCall.jl did not start properly')
     if not skip:
-        deps.record_resolve(pkgs)
+        deps.record_resolve(pkgs, d)
 finally:
     os.chdir(d)
+

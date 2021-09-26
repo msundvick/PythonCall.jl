@@ -2,6 +2,7 @@ import os
 import sys
 
 from time import time
+from pathlib import Path
 
 from . import CONFIG, __version__
 from .jlcompat import JuliaCompat, Version, julia_version_str
@@ -119,6 +120,12 @@ def can_skip_resolve():
             fn = os.path.join(path, "juliacalldeps.json")
             if os.path.exists(fn) and os.path.getmtime(fn) > timestamp:
                 return False
+
+    # resolve when path to project changes
+    project_path = deps.get("project_path")
+    if os.getcwd() != project_path:
+        return False
+
     return deps
 
 def deps_files():
@@ -187,6 +194,12 @@ def required_packages():
         merge_compat(kw, kfvs, 'compat')
         merge_any(kw, kfvs, 'dev')
         deps.append(PackageSpec(**kw))
+
+    for dep in deps:
+        if dep.path is not None:
+            # Convert relative path to absolute path
+            dep.path = str(Path(dep.path).absolute().resolve())
+    
     return deps
 
 def required_julia():
@@ -238,7 +251,7 @@ def best_julia_version(compat=None):
         raise Exception('Did not find a version of Julia satisfying {!r}'.format(compat.jlstr()))
     return max(releases, key=lambda x: jill.utils.version_utils.Version(x[0]))[0]
 
-def record_resolve(pkgs):
+def record_resolve(pkgs, d):
     set_meta("pydeps", {
         "version": __version__,
         "dev": CONFIG["dev"],
@@ -247,4 +260,5 @@ def record_resolve(pkgs):
         "timestamp": time(),
         "sys_path": sys.path,
         "pkgs": [pkg.dict() for pkg in pkgs],
+        "project_path": d
     })
